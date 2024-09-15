@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15  # Версия PostgreSQL
+    environment:
+      POSTGRES_USER: postgres  # Пользователь базы данных
+      POSTGRES_PASSWORD: postgres  # Пароль для пользователя
+      POSTGRES_DB: postgres  # Название базы данных
+    ports:
+      - "5432:5432"  # Проброс порта для доступа к базе данных на локальной машине
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Сохранение данных базы в volume
+
+volumes:
+  postgres_data:

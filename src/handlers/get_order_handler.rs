@@ -1,11 +1,12 @@
-use axum::extract::Path;
+use std::sync::Arc;
+use axum::extract::{Path, State};
 use axum::Json;
-
+use crate::AppState;
 use crate::data::order::Order;
 use crate::data::delivery::Delivery;
 use crate::data::payment::Payment;
 
-pub async fn get_order_handler(Path(order_id): Path<u64>) -> Json<Order> {
+pub async fn get_order_handler(State(state): State<Arc<AppState>>, Path(order_id): Path<u64>) -> Json<Order> {
     println!("{}", order_id);
     let order = Order {
         order_uid: String::from("123"),
