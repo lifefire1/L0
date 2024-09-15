@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
 use crate::data::delivery::Delivery;
 use crate::data::item::Item;
 use crate::data::payment::Payment;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Order {
     pub order_uid: String,
     pub track_number: String,
