@@ -40,7 +40,7 @@ pub async fn get_order_handler(State(state): State<Arc<AppState>>, Path(order_id
         delivery_service: "".to_string(),
         shardkey: "".to_string(),
         sm_id: 0,
-        date_created: "".to_string(),
+        date_created: Default::default(),
         oof_shard: "".to_string(),
     };
     Json::from(order)
