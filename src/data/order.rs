@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use crate::data::delivery::Delivery;
 use crate::data::item::Item;
@@ -17,6 +18,6 @@ pub struct Order {
     pub delivery_service: String,
     pub shardkey: String,
     pub sm_id: i64,
-    pub date_created: String,
+    pub date_created: DateTime<Utc>,
     pub oof_shard: String,
 }
