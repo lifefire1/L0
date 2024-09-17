@@ -1,31 +1,48 @@
 use std::sync::Arc;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::Json;
-use chrono::Utc;
+use axum::response::IntoResponse;
+use tokio_postgres::{Error};
 use crate::AppState;
 use crate::data::delivery::Delivery;
 use crate::data::item::Item;
 use crate::data::order::Order;
 use crate::data::payment::Payment;
 
-pub async fn post_order_handler(State(state): State<Arc<AppState>>, order: Json<Order>) {
+
+pub async fn post_order_handler(
+    State(state): State<Arc<AppState>>,
+    Json(order): Json<Order>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     println!("{:?}", order);
 
-    // Сохранение данных о доставке
-    let delivery_id = save_deliveries(&order.delivery, &state).await;
+    let mut client = state.db_client.lock().await;
 
-    // Сохранение данных о платеже
-    let payment_id = save_payments(&order.payment, &state).await;
+    let transaction = client.transaction().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Сохранение данных о заказе
-    save_order(&order, &state, delivery_id, payment_id).await;
+    let result = {
+        let tx = transaction;
 
-    // Сохранение данных о товарах
-    save_items(&order.items, &state, &order.order_uid).await;
+        let delivery_id = save_deliveries(&order.delivery, &tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        let payment_id = save_payments(&order.payment, &tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        save_order(&order, &tx, delivery_id, payment_id).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        save_items(&order.items, &tx, &order.order_uid).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        tx.commit().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        Ok("Order processed successfully".into_response())
+    };
+
+    drop(client);
+
+    result
 }
-
-async fn save_payments(payment: &Payment, state: &Arc<AppState>) -> i32 {
-    let row = state.db_client
+async fn save_payments(payment: &Payment, transaction: &tokio_postgres::Transaction<'_>) -> Result<i32, Error> {
+    let row = transaction
         .query_one(
             "
             INSERT INTO payments (transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee)
@@ -43,16 +60,15 @@ async fn save_payments(payment: &Payment, state: &Arc<AppState>) -> i32 {
                 &payment.delivery_cost,
                 &payment.goods_total,
                 &payment.custom_fee,
-            ]
+            ],
         )
-        .await
-        .expect("Error saving payment");
+        .await?;
 
-    row.get(0)
+    Ok(row.get(0))
 }
 
-async fn save_deliveries(delivery: &Delivery, state: &Arc<AppState>) -> i32 {
-    let row = state.db_client
+async fn save_deliveries(delivery: &Delivery, transaction: &tokio_postgres::Transaction<'_>) -> Result<i32, Error> {
+    let row = transaction
         .query_one(
             "
             INSERT INTO deliveries (name, phone, zip, city, address, region, email)
@@ -67,18 +83,17 @@ async fn save_deliveries(delivery: &Delivery, state: &Arc<AppState>) -> i32 {
                 &delivery.address,
                 &delivery.region,
                 &delivery.email,
-            ]
+            ],
         )
-        .await
-        .expect("Error saving delivery");
+        .await?;
 
-    row.get(0)
+    Ok(row.get(0))
 }
 
-async fn save_items(items: &Vec<Item>, state: &Arc<AppState>, order_uid: &str) {
+async fn save_items(items: &Vec<Item>, transaction: &tokio_postgres::Transaction<'_>, order_uid: &str) -> Result<(), Error> {
     for item in items {
-        state.db_client
-            .query(
+        transaction
+            .execute(
                 "
                 INSERT INTO items (order_uid, chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
@@ -96,17 +111,17 @@ async fn save_items(items: &Vec<Item>, state: &Arc<AppState>, order_uid: &str) {
                     &item.nm_id,
                     &item.brand,
                     &item.status,
-                ]
+                ],
             )
-            .await
-            .expect("Error saving item");
+            .await?;
     }
+    Ok(())
 }
 
-async fn save_order(order: &Order, state: &Arc<AppState>, delivery_id: i32, payment_id: i32) {
+async fn save_order(order: &Order, transaction: &tokio_postgres::Transaction<'_>, delivery_id: i32, payment_id: i32) -> Result<(), Error> {
     let naive_date_time = order.date_created.naive_utc();
-    state.db_client
-        .query(
+    transaction
+        .execute(
             "
             INSERT INTO orders (order_uid, track_number, entry, delivery_id, payment_id,
             locale, internal_signature, customer_id, delivery_service, shardkey,
@@ -117,8 +132,9 @@ async fn save_order(order: &Order, state: &Arc<AppState>, delivery_id: i32, paym
                 &order.order_uid, &order.track_number, &order.entry, &delivery_id, &payment_id,
                 &order.locale, &order.internal_signature, &order.customer_id, &order.delivery_service, &order.shardkey,
                 &order.sm_id, &naive_date_time, &order.oof_shard
-            ]
+            ],
         )
-        .await
-        .expect("Error saving order");
+        .await?;
+
+    Ok(())
 }
