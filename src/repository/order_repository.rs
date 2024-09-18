@@ -3,10 +3,10 @@ use crate::data::item::Item;
 use crate::data::order::Order;
 use crate::data::payment::Payment;
 use crate::services::{delivery_service, item_service, payment_service};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{ NaiveDateTime, TimeZone, Utc};
 use tokio_postgres::{Error, Transaction};
 
-pub(crate) async fn save_order(order: &Order, transaction: &tokio_postgres::Transaction<'_>, delivery_id: i32, payment_id: i32) -> Result<(), Error> {
+pub(crate) async fn save_order(order: &Order, transaction: &Transaction<'_>, delivery_id: i32, payment_id: i32) -> Result<(), Error> {
     let naive_date_time = order.date_created.naive_utc();
     transaction
         .execute(
@@ -40,8 +40,9 @@ pub async fn get_order_by_uid(
     let delivery: Delivery = delivery_service::get_delivery_by_id(order_row.get("delivery_id"), &tx).await?;
     let payment: Payment = payment_service::get_payment_by_id(order_row.get("payment_id"), &tx).await?;
     let items: Vec<Item> = item_service::get_items_by_uid(order_uid, &tx).await?;
+
     let naive_date_time: NaiveDateTime = order_row.get("date_created");
-    let date_created = DateTime::<Utc>::from_utc(naive_date_time, Utc);
+    let date_created = Utc.from_utc_datetime(&naive_date_time);
 
     let order: Order = Order {
         order_uid: String::from(order_uid),
