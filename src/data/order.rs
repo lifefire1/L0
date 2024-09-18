@@ -1,8 +1,8 @@
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use crate::data::delivery::Delivery;
 use crate::data::item::Item;
 use crate::data::payment::Payment;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Order {
