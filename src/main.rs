@@ -1,16 +1,18 @@
-use std::sync::Arc;
-use axum::Router;
 use axum::routing::{get, post};
+use axum::Router;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 mod data;
 mod handlers;
 mod db;
+mod services;
+mod repository;
 
+use crate::db::connection_to_postgres::connection;
 use crate::handlers::get_order_handler::get_order_handler;
 use crate::handlers::post_order_handler::post_order_handler;
-use crate::db::connection_to_postgres::connection;
 
 struct AppState {
     db_client: Arc<Mutex<Client>>, // Wrap Client in Arc<Mutex>
