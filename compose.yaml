@@ -12,5 +12,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data  # Сохранение данных базы в volume
 
+  redis:
+    image: redis:latest
+    container_name: redis_container
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - /path/to/local/dаta:/root/redis
+      - /path/to/local/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_PASSWORD=${password}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DATABASES=16
 volumes:
   postgres_data:
+
