@@ -5,13 +5,14 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use std::sync::Arc;
+use log::info;
 
 pub async fn post_order_handler(
     State(state): State<Arc<AppState>>,
     Json(order): Json<Order>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     println!("{:?}", order);
-
+    info!("{:15}","POST /order" );
     let mut client = state.db_client.lock().await;
 
     let transaction = client.transaction().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -28,7 +29,7 @@ pub async fn post_order_handler(
         services::item_service::save_items(&order.items, &tx, &order.order_uid).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
         tx.commit().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
+        info!("{:15} {}","POST /order", "200 (OK)" );
         Ok("Order processed successfully".into_response())
     };
 

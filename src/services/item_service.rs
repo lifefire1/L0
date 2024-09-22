@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use log::info;
 use redis::Client;
 use tokio::sync::MutexGuard;
 use crate::data::item::Item;
@@ -17,16 +17,15 @@ pub(crate) async fn get_item_by_chrt_id(chrt_id: &str, transaction: &tokio_postg
     item_repository::get_item_by_chrt_id(transaction, chrt_id).await
 }
 
-pub(crate) async fn get_item(chrt_id: &str, mut client: &MutexGuard<'_ ,Client>, tx: &Transaction<'_>) -> Result<Item, Error> {
+pub(crate) async fn get_item(chrt_id: &str, client: &MutexGuard<'_ ,Client>, tx: &Transaction<'_>) -> Result<Item, Error> {
     let result_cache = get_item_from_cache(chrt_id, client).await;
     if result_cache.is_err() {
+        info!("cache miss for {}", chrt_id);
         let item = get_item_by_chrt_id(chrt_id, tx).await?;
         save_item_in_cache(&item, client).await.expect("TODO: panic message");
         return Ok(item);
         // после запроса в бд нужно добавить товар в кэш
     }
-
-
-    // TODO не забыть поменять
+    info!("cache is {}", chrt_id);
     Ok(result_cache.unwrap())
 }

@@ -1,13 +1,12 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use redis::{Client, Commands};
+use std::ptr::null;
+use redis::{Client};
 use crate::data::item::Item;
 use tokio_postgres::{Error, Transaction};
 use crate::error::cache_error::CacheError;
 use redis::AsyncCommands;
 use tokio::sync::MutexGuard;
 
-const MAX_ZSET_SIZE: isize = 100;
 const POPULAR_ITEMS_KEY: &str = "popular_items";
 
 pub(crate) async fn save_items(items: &Vec<Item>, transaction: &tokio_postgres::Transaction<'_>, order_uid: &str) -> Result<(), Error> {
@@ -128,7 +127,9 @@ pub(crate) async fn get_item_from_cache(chrt_id: &str, client: &MutexGuard<'_,Cl
         con.zincr(POPULAR_ITEMS_KEY, chrt_id, 1).await?;
         // Если товар есть в ZSET, получаем данные товара из HashMap
         let item_data: HashMap<String, String> = con.hgetall(chrt_id).await?;
-
+        if item_data.get("chrt_id") == None {
+            return Err(CacheError::CacheMiss)
+        }
         let item = Item {
             chrt_id: item_data.get("chrt_id").unwrap_or(&"0".to_string()).parse().unwrap_or(0),
             track_number: item_data.get("track_number").unwrap_or(&"Unknown".to_string()).clone(),
