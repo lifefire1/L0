@@ -11,7 +11,7 @@ services:
       - "5432:5432"  # Проброс порта для доступа к базе данных на локальной машине
     volumes:
       - postgres_data:/var/lib/postgresql/data  # Сохранение данных базы в volume
-
+      - ./db.sql:/docker-entrypoint-initdb.d/db.sql
   redis:
     image: redis:latest
     container_name: redis_container
