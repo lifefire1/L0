@@ -22,8 +22,8 @@
 
 1. Склонируйте репозиторий:
    ```bash
-   git clone <repository_url>
-   cd <repository_name>
+   git clone https://github.com/lifefire1/L0.git
+   cd L0
    ```
 2. Установите зависимости:
    ```bash
